@@ -1,4 +1,4 @@
-FROM python:3.11
+FROM python:3.11 as base
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
                 #python3-pip \
                 #python-is-python3 \
                 unzip \
+                vim \
                 wget \
         && rm -rf /var/lib/apt/lists/*
 
@@ -45,6 +46,22 @@ COPY --from=initc3/linux-sgx:2.15.1-ubuntu20.04 \
 RUN set -eux; \
         echo 'source /opt/sgxsdk/environment' >> /root/.bashrc;
 
-WORKDIR /builder/
+WORKDIR /usr/src/enigmap
 
-COPY . .
+COPY applications applications
+COPY cmake cmake
+COPY ods ods
+COPY tests tests
+COPY CMakeLists.txt .
+
+
+FROM base as build
+
+ARG cc=/usr/bin/clang
+ARG cxx=/usr/bin/clang++
+ARG cmake_build_type=Release
+ENV CC ${cc}
+ENV CXX ${cxx}
+
+RUN cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=${cmake_build_type}
+RUN ninja -C build
